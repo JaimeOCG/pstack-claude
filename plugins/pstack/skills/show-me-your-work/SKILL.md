@@ -40,6 +40,17 @@ Use the helper `scripts/log.sh <logfile> <phase> <decision> <why> <evidence> <re
 
 Log decision points and checkpoints, not every action: a fork chosen, a unit completed with its verification result, a pivot or revert with its trigger, a blocker surfaced, a gate fixed. For loop runs, one row per iteration. Skip the trivial and self-evident.
 
+On POSIX hosts, capture command evidence with `node scripts/capture.mjs DEST -- COMMAND ARGS` from this skill directory. Bun can run the same script. It reserves a new `DEST` directory before spawning the command. The parent directory must exist. Use a fresh destination for each attempt, including retries. An existing destination is refused without running the command.
+
+```sh
+mkdir -p .audit
+node scripts/capture.mjs .audit/attempt-001 -- bun test
+```
+
+The directory holds exact separate `stdout.bin` and `stderr.bin` byte streams, `command.json` with argv and cwd, and an atomically published `result.json`. There is no implicit shell. For shell syntax, pass an explicit shell such as `sh -c 'command | other-command'`.
+
+`result.json` with `kind: "exited"` records a completed capture and its numeric `code`. The helper returns that code, including failures such as 7. Completion alone does not mean tests passed. Tool failures return 125. A missing result or `kind: "incomplete"` means capture did not complete. Handled interruption and capture errors terminate the owned command group. Hard termination can leave partial files. Preserve that directory and use a new destination for the next attempt. Existing evidence is never replaced by the helper. Put the destination path in the log row's evidence cell and report the command's actual outcome in its result cell.
+
 A run is one agent conversation, including its later turns and any summary of it. A pickup, a replacement agent, or a new chat starts a new run. When a run adds to a log that already has rows, its first row has phase `start`, and so does its first row after another run's `start` row. So a run that comes back to a log in a later turn first reads the log's last rows to see whether another run wrote since. A `start` row names the `ts` range of the rows before it that this run did not write, and its evidence names this run, such as its agent id. Use phase `start` for nothing else.
 
 ## Where it lives
